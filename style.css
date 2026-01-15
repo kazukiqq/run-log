@@ -1124,6 +1124,7 @@ h1.screen-title {
     padding: 24px 0;
     display: flex;
     flex-direction: column;
+    flex: 1;
 }
 
 .menu-item {
@@ -1542,4 +1543,22 @@ h1.screen-title {
 .confetti:nth-child(4n) {
     background: #f472b6;
     border-radius: 50%;
+}
+
+/* ========================================
+   Side Menu Footer (Version Info)
+   ======================================== */
+.menu-footer {
+    padding: 20px;
+    margin-top: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+.version-label {
+    font-size: 0.75rem;
+    color: var(--color-text-dim);
+    opacity: 0.5;
+    font-family: var(--font-main);
+    letter-spacing: 0.05em;
 }
