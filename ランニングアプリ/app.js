@@ -105,6 +105,60 @@ document.addEventListener('DOMContentLoaded', () => {
                 stopTracking();
             }
         });
+
+        // Weather fetch button
+        const fetchWeatherBtn = document.getElementById('btn-fetch-weather');
+        if (fetchWeatherBtn) {
+            fetchWeatherBtn.addEventListener('click', () => {
+                if (!navigator.geolocation) return alert('GPSが利用できません');
+
+                const msgEl = document.getElementById('weather-status-msg');
+                msgEl.textContent = '取得中...';
+
+                navigator.geolocation.getCurrentPosition(async (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    const result = await fetchWeather(latitude, longitude);
+                    if (result) {
+                        const tempEl = document.getElementById('input-temp');
+                        if (tempEl) tempEl.value = result.temp;
+                        const weatherId = mapWeatherCode(result.code);
+                        const weatherRadio = document.getElementById(`w-${weatherId}`);
+                        if (weatherRadio) weatherRadio.checked = true;
+                        msgEl.textContent = '完了';
+                        setTimeout(() => msgEl.textContent = '', 2000);
+                    } else {
+                        msgEl.textContent = '失敗';
+                    }
+                }, () => {
+                    msgEl.textContent = '位置取得失敗';
+                });
+            });
+        }
+    }
+
+    async function fetchWeather(lat, lon) {
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data && data.current_weather) {
+                return {
+                    temp: data.current_weather.temperature,
+                    code: data.current_weather.weathercode
+                };
+            }
+        } catch (e) {
+            console.error('Weather fetch error:', e);
+        }
+        return null;
+    }
+
+    function mapWeatherCode(code) {
+        if (code === 0) return 'sunny';
+        if (code >= 1 && code <= 48) return 'cloudy';
+        if (code >= 51 && code <= 67 || code >= 80 && code <= 99) return 'rainy';
+        if (code >= 71 && code <= 77) return 'snowy';
+        return 'sunny';
     }
 
     function initMap() {
@@ -710,13 +764,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const isBest = records.length === 0 || totalSeconds < Math.min(...records.map(r => r.totalSeconds));
         const diffMsg = getDiffMessage(totalSeconds);
 
+        // Get weather/temp from UI
+        const weatherEl = document.querySelector('input[name="weather"]:checked');
+        const weather = weatherEl ? weatherEl.value : 'sunny';
+        const tempEl = document.getElementById('input-temp');
+        const temp = tempEl && tempEl.value !== '' ? parseFloat(tempEl.value) : null;
+
         const newRecord = {
             id: Date.now(),
             date: new Date().toLocaleDateString('ja-JP'),
             min: currentMin, sec: currentSec,
             totalSeconds: totalSeconds,
             distance: currentDist,
-            isBest: isBest
+            pace: formatPace(totalSeconds, currentDist),
+            weather: weather,
+            temp: temp,
+            isBest: isBest,
+            route: trackPath.length > 0 ? [...trackPath] : null
         };
 
         records.unshift(newRecord);
@@ -766,10 +830,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const bestMark = r.isBest ? '<span class="best-star">★</span>' : '';
             const d = r.distance ? `${r.distance.toFixed(1)}km` : '-.-km';
             const p = formatPace(r.totalSeconds, r.distance);
+
+            // Weather icon and temp string
+            const weatherIconMap = { sunny: '☀️', cloudy: '☁️', rainy: '⛆', snowy: '❄️' };
+            const weatherIcon = r.weather ? weatherIconMap[r.weather] : '';
+            const tempStr = (r.temp !== null && r.temp !== undefined) ? `${r.temp}℃` : '';
+
             item.innerHTML = `
                 <div class="history-info" style="flex:1">
                     <div class="history-date">${r.date}</div>
-                    <div style="font-size:0.8rem; color:var(--color-text-dim)">${d} | ペース: ${p}/km</div>
+                    <div style="font-size:0.8rem; color:var(--color-text-dim)">
+                        ${d} | ペース: ${p}/km
+                    </div>
+                    ${(weatherIcon || tempStr) ? `<div class="history-weather" style="font-size:0.85rem; color:var(--color-primary); margin-top:4px;">${weatherIcon} ${tempStr}</div>` : ''}
                 </div>
                 <div class="history-time">${bestMark}${formatTime(r.totalSeconds)}</div>
                 <button class="btn-history-delete" data-id="${r.id}">🗑️</button>

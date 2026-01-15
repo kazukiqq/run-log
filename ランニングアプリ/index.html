@@ -232,6 +232,29 @@
                     </div>
                 </div>
             </div>
+
+            <div class="weather-input-section">
+                <p class="label">今日のコンディション</p>
+                <div class="weather-selector">
+                    <input type="radio" name="weather" id="w-sunny" value="sunny" checked>
+                    <label for="w-sunny" title="晴れ">☀️</label>
+
+                    <input type="radio" name="weather" id="w-cloudy" value="cloudy">
+                    <label for="w-cloudy" title="曇り">☁️</label>
+
+                    <input type="radio" name="weather" id="w-rainy" value="rainy">
+                    <label for="w-rainy" title="雨">⛆</label>
+
+                    <input type="radio" name="weather" id="w-snowy" value="snowy">
+                    <label for="w-snowy" title="雪">❄️</label>
+                </div>
+                <div class="temp-input-wrapper">
+                    <input type="number" id="input-temp" step="0.5" placeholder="気温(℃)">
+                    <button id="btn-fetch-weather" class="btn-icon" title="現在地の天気を取得">🔄</button>
+                    <span id="weather-status-msg"></span>
+                </div>
+            </div>
+
             <div class="button-group horizontal">
                 <button id="btn-save" class="btn success">保存する</button>
                 <button id="btn-cancel" class="btn danger">キャンセル</button>
