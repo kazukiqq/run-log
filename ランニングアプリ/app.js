@@ -139,14 +139,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (accuracy > 50) return; // Skip inaccurate position
 
             const newPoint = [latitude, longitude];
-            
+
             if (trackPath.length > 0) {
                 const lastPoint = trackPath[trackPath.length - 1];
                 const dist = calculateDistance(lastPoint[0], lastPoint[1], latitude, longitude);
                 totalGpsDistance += dist;
                 currentDist = totalGpsDistance; // Update global distance
                 updateInputDisplay();
-                
+                updateStopwatchDisplay(); // Update stopwatch screen distance
+
                 // Voice announcement every 1km
                 if (isVoiceEnabled && Math.floor(totalGpsDistance) > lastAnnouncedKm) {
                     lastAnnouncedKm = Math.floor(totalGpsDistance);
@@ -798,7 +799,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetStopwatch() {
-        stopStopwatch(); elapsedSeconds = 0; updateStopwatchDisplay();
+        stopStopwatch(); elapsedSeconds = 0;
+        currentDist = 0; // Reset distance for new run
+        updateStopwatchDisplay();
         const toggleBtn = document.getElementById('btn-stopwatch-toggle');
         toggleBtn.textContent = 'スタート'; toggleBtn.className = 'btn success';
         document.getElementById('btn-stopwatch-done').style.display = 'none';
@@ -824,7 +827,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function stopStopwatch() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
-    function updateStopwatchDisplay() { stopwatchTime.textContent = formatTime(elapsedSeconds); }
+    function updateStopwatchDisplay() {
+        stopwatchTime.textContent = formatTime(elapsedSeconds);
+        const distEl = document.getElementById('stopwatch-dist');
+        if (distEl) distEl.textContent = `${currentDist.toFixed(1)} km`;
+    }
     function finishStopwatch() { stopStopwatch(); currentMin = Math.floor(elapsedSeconds / 60); currentSec = elapsedSeconds % 60; showScreen('input'); }
     function updateInputDisplay() { inputs.min.value = currentMin; inputs.sec.value = currentSec; inputs.dist.value = currentDist.toFixed(1); }
 
