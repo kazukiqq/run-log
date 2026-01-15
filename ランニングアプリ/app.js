@@ -9,6 +9,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let monthlyGoal = 10.0; // Default monthly goal in km
     let goalAchievedThisMonth = false;
 
+    // --- Advanced Features State ---
+    let map = null;
+    let trackPath = [];
+    let trackPolyline = null;
+    let watchId = null;
+    let isVoiceEnabled = true;
+    let isGpsEnabled = true;
+    let lastAnnouncedKm = 0;
+    let totalGpsDistance = 0;
+
     // --- DOM Elements ---
     const screens = {
         userSelect: document.getElementById('screen-user-select'),
@@ -71,6 +81,113 @@ document.addEventListener('DOMContentLoaded', () => {
             showScreen('userSelect');
         }
         initGoalListeners();
+        initAdvancedFeatures();
+    }
+
+    // --- Advanced Features (GPS & Voice) ---
+    function initAdvancedFeatures() {
+        // Voice switch
+        const voiceSwitch = document.getElementById('switch-voice');
+        voiceSwitch.addEventListener('change', (e) => {
+            isVoiceEnabled = e.target.checked;
+        });
+
+        // GPS switch
+        const gpsSwitch = document.getElementById('switch-gps');
+        gpsSwitch.addEventListener('change', (e) => {
+            isGpsEnabled = e.target.checked;
+            const container = document.getElementById('tracking-map-container');
+            if (isGpsEnabled) {
+                container.classList.remove('hidden');
+                initMap();
+            } else {
+                container.classList.add('hidden');
+                stopTracking();
+            }
+        });
+    }
+
+    function initMap() {
+        if (!isGpsEnabled) return;
+        if (map) return; // Already initialized
+
+        // Standard Leaflet initialization
+        map = L.map('map').setView([35.6812, 139.7671], 15); // Default Tokyo
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        trackPolyline = L.polyline([], { color: '#3b82f6', weight: 6, opacity: 0.8 }).addTo(map);
+
+        // Try to get current position to center map
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const { latitude, longitude } = pos.coords;
+            map.setView([latitude, longitude], 17);
+        }, () => console.log('Current position not available for initial map view'));
+    }
+
+    function startTracking() {
+        if (!isGpsEnabled || !navigator.geolocation) return;
+
+        trackPath = [];
+        totalGpsDistance = 0;
+        lastAnnouncedKm = 0;
+        if (trackPolyline) trackPolyline.setLatLngs([]);
+
+        watchId = navigator.geolocation.watchPosition((pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            if (accuracy > 50) return; // Skip inaccurate position
+
+            const newPoint = [latitude, longitude];
+            
+            if (trackPath.length > 0) {
+                const lastPoint = trackPath[trackPath.length - 1];
+                const dist = calculateDistance(lastPoint[0], lastPoint[1], latitude, longitude);
+                totalGpsDistance += dist;
+                currentDist = totalGpsDistance; // Update global distance
+                updateInputDisplay();
+                
+                // Voice announcement every 1km
+                if (isVoiceEnabled && Math.floor(totalGpsDistance) > lastAnnouncedKm) {
+                    lastAnnouncedKm = Math.floor(totalGpsDistance);
+                    speak(`${lastAnnouncedKm}キロ通過。現在のタイムは${formatTime(elapsedSeconds)}です。`);
+                }
+            }
+
+            trackPath.push(newPoint);
+            if (trackPolyline) trackPolyline.setLatLngs(trackPath);
+            if (map) map.panTo(newPoint);
+
+        }, (err) => console.error('GPS tracking error:', err), {
+            enableHighAccuracy: true,
+            distanceFilter: 10
+        });
+    }
+
+    function stopTracking() {
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Earth radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    function speak(text) {
+        if (!isVoiceEnabled || !window.speechSynthesis) return;
+        const uttr = new SpeechSynthesisUtterance(text);
+        uttr.lang = 'ja-JP';
+        uttr.rate = 1.0;
+        window.speechSynthesis.speak(uttr);
     }
 
     // --- Goal Feature ---
@@ -250,7 +367,10 @@ document.addEventListener('DOMContentLoaded', () => {
             updateHomeDisplay();
             drawGraph();
         }
-        if (screenId === 'stopwatch') resetStopwatch();
+        if (screenId === 'stopwatch') {
+            resetStopwatch();
+            setTimeout(initMap, 100); // Wait for screen animation
+        }
         if (screenId === 'userSelect') updateHomeButtonVisibility();
         if (screenId === 'userRegister') updateHomeButtonVisibility();
     }
@@ -688,9 +808,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const toggleBtn = document.getElementById('btn-stopwatch-toggle');
         const doneBtn = document.getElementById('btn-stopwatch-done');
         if (timerInterval) {
-            stopStopwatch(); toggleBtn.textContent = '再開'; toggleBtn.className = 'btn success'; doneBtn.style.display = 'block';
+            stopStopwatch(); stopTracking(); toggleBtn.textContent = '再開'; toggleBtn.className = 'btn success'; doneBtn.style.display = 'block';
+            speak('ストップ');
         } else {
-            startStopwatch(); toggleBtn.textContent = 'ストップ'; toggleBtn.className = 'btn danger'; doneBtn.style.display = 'none';
+            startStopwatch(); startTracking(); toggleBtn.textContent = 'ストップ'; toggleBtn.className = 'btn danger'; doneBtn.style.display = 'none';
+            speak('スタート');
         }
     }
 
