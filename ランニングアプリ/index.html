@@ -52,7 +52,7 @@
             <button class="menu-item" data-action="selectUser">🔄 ユーザーを切り替える</button>
             <button class="menu-item" data-action="registerUser">➕ 新しい人を追加</button>
             <div class="menu-footer">
-                <span class="version-label">v1.3.0</span>
+                <span class="version-label">v1.4.0</span>
             </div>
         </div>
     </nav>
@@ -340,6 +340,23 @@
                 </div>
             </div>
             <button id="btn-close-celebration" class="btn primary">おめでとう！🎊</button>
+        </div>
+    </div>
+
+    <!-- ルートマップ表示モーダル -->
+    <div id="route-modal" class="modal-overlay hidden">
+        <div class="modal-content route-modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">🗺️ 走ったルート</h2>
+                <button id="btn-close-route" class="btn-close-modal">×</button>
+            </div>
+            <div id="route-map-container">
+                <div id="route-map"></div>
+            </div>
+            <div class="route-info">
+                <span id="route-date"></span>
+                <span id="route-distance"></span>
+            </div>
         </div>
     </div>
 

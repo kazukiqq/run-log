@@ -888,6 +888,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const weatherIcon = r.weather ? weatherIconMap[r.weather] : '';
             const tempStr = (r.temp !== null && r.temp !== undefined) ? `${r.temp}℃` : '';
 
+            // Route button if route exists
+            const routeBtn = (r.route && r.route.length > 1) ? `<button class="btn-route-view" data-id="${r.id}">🗺️ ルート</button>` : '';
+
             item.innerHTML = `
                 <div class="history-info" style="flex:1">
                     <div class="history-date">${r.date}</div>
@@ -897,6 +900,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${(weatherIcon || tempStr) ? `<div class="history-weather" style="font-size:0.85rem; color:var(--color-primary); margin-top:4px;">${weatherIcon} ${tempStr}</div>` : ''}
                 </div>
                 <div class="history-time">${bestMark}${formatTime(r.totalSeconds)}</div>
+                ${routeBtn}
                 <button class="btn-history-delete" data-id="${r.id}">🗑️</button>
             `;
 
@@ -905,9 +909,77 @@ document.addEventListener('DOMContentLoaded', () => {
                 deleteRecord(r.id);
             });
 
+            // Route view button handler
+            const routeBtnEl = item.querySelector('.btn-route-view');
+            if (routeBtnEl) {
+                routeBtnEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showRouteMap(r);
+                });
+            }
+
             historyList.appendChild(item);
         });
     }
+
+    // Route Map Modal
+    let routeMap = null;
+    let routePolyline = null;
+
+    function showRouteMap(record) {
+        if (!record.route || record.route.length < 2) return;
+
+        const modal = document.getElementById('route-modal');
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.add('active'), 10);
+
+        // Update info
+        document.getElementById('route-date').textContent = record.date;
+        document.getElementById('route-distance').textContent = record.distance ? `${record.distance.toFixed(1)} km` : '';
+
+        // Initialize or reset map
+        setTimeout(() => {
+            if (routeMap) {
+                routeMap.remove();
+                routeMap = null;
+            }
+
+            routeMap = L.map('route-map').setView(record.route[0], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(routeMap);
+
+            // Draw route
+            routePolyline = L.polyline(record.route, {
+                color: '#3b82f6',
+                weight: 5,
+                opacity: 0.9
+            }).addTo(routeMap);
+
+            // Add start/end markers
+            L.marker(record.route[0]).addTo(routeMap).bindPopup('スタート');
+            L.marker(record.route[record.route.length - 1]).addTo(routeMap).bindPopup('ゴール');
+
+            // Fit bounds
+            routeMap.fitBounds(routePolyline.getBounds(), { padding: [30, 30] });
+        }, 100);
+    }
+
+    function closeRouteMap() {
+        const modal = document.getElementById('route-modal');
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            if (routeMap) {
+                routeMap.remove();
+                routeMap = null;
+            }
+        }, 300);
+    }
+
+    // Route modal close button
+    document.getElementById('btn-close-route').addEventListener('click', closeRouteMap);
+
 
     function deleteRecord(recordId) {
         if (!confirm('この記録を削除しますか？')) return;
