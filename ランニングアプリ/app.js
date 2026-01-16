@@ -1214,4 +1214,34 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Update check button in side menu
+    const btnCheckUpdate = document.getElementById('btn-check-update');
+    if (btnCheckUpdate) {
+        btnCheckUpdate.addEventListener('click', async () => {
+            btnCheckUpdate.textContent = '⌛ チェック中...';
+            btnCheckUpdate.disabled = true;
+
+            if ('serviceWorker' in navigator) {
+                try {
+                    const reg = await navigator.serviceWorker.getRegistration();
+                    if (reg) {
+                        await reg.update();
+                        // 新しいのが見つかれば controllerchange イベントでリロードされる
+                        // 見つからない場合は1.5秒後に元に戻す
+                        setTimeout(() => {
+                            btnCheckUpdate.textContent = '✅ 最新です (再度チェック)';
+                            btnCheckUpdate.disabled = false;
+                        }, 1500);
+                    }
+                } catch (err) {
+                    console.error('Update check failed:', err);
+                    btnCheckUpdate.textContent = '❌ エラーが発生しました';
+                    btnCheckUpdate.disabled = false;
+                }
+            } else {
+                btnCheckUpdate.textContent = '❌ PWA未対応ブラウザ';
+            }
+        });
+    }
 });

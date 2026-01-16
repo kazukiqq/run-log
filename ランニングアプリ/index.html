@@ -51,6 +51,9 @@
             <div class="menu-divider"></div>
             <button class="menu-item" data-action="selectUser">🔄 ユーザーを切り替える</button>
             <button class="menu-item" data-action="registerUser">➕ 新しい人を追加</button>
+            <button class="menu-item" id="btn-check-update"
+                style="color: var(--color-primary); border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px;">🔄
+                アプリの更新をチェック</button>
             <div class="menu-footer">
                 <span class="version-label">v1.5.0</span>
             </div>
@@ -408,7 +411,7 @@
     <script src="app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
+            navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
                 .then((reg) => {
                     console.log('Service Worker Registered');
 
