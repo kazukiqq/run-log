@@ -412,6 +412,9 @@
                 .then((reg) => {
                     console.log('Service Worker Registered');
 
+                    // 強制的に更新をチェック
+                    reg.update();
+
                     // すでに待機中の更新がある場合
                     if (reg.waiting) {
                         reg.waiting.postMessage('skipWaiting');
