@@ -55,7 +55,7 @@
                 style="color: var(--color-primary); border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px;">🔄
                 アプリの更新をチェック</button>
             <div class="menu-footer">
-                <span class="version-label">v1.5.0</span>
+                <span class="version-label">v1.6.0</span>
             </div>
         </div>
     </nav>
@@ -355,7 +355,20 @@
             <h2 class="modal-title">🔊 音声ガイド設定</h2>
             <div class="voice-settings-form">
                 <div class="setting-item">
+                    <label>おすすめプリセット</label>
+                    <div class="voice-presets">
+                        <button class="preset-btn voice-preset" data-pitch="1.0" data-rate="1.0">🎤 通常</button>
+                        <button class="preset-btn voice-preset" data-pitch="1.6" data-rate="1.1">🎀 アニメ風</button>
+                        <button class="preset-btn voice-preset" data-pitch="0.7" data-rate="0.9">🎙️ 低音</button>
+                        <button class="preset-btn voice-preset" data-pitch="1.2" data-rate="1.4">⚡ 高速</button>
+                    </div>
+                </div>
+                <div class="setting-item">
                     <label for="select-voice">声の種類</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="show-all-voices">
+                        <span>すべての声を表示</span>
+                    </label>
                     <select id="select-voice" class="form-select">
                         <option value="">（デフォルト）</option>
                     </select>

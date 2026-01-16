@@ -123,15 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         btnVoiceSettings.addEventListener('click', () => {
             // Load voices
-            availableVoices = window.speechSynthesis.getVoices();
-            selectVoice.innerHTML = '<option value="">（デフォルト）</option>';
-            availableVoices.filter(v => v.lang.startsWith('ja')).forEach(voice => {
-                const opt = document.createElement('option');
-                opt.value = voice.name;
-                opt.textContent = `${voice.name} (${voice.lang})`;
-                if (voice.name === selectedVoiceName) opt.selected = true;
-                selectVoice.appendChild(opt);
-            });
+            reloadVoiceOptions();
 
             // Set current vals
             inputPitch.value = voicePitch;
@@ -141,6 +133,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
             voiceModal.classList.remove('hidden');
             setTimeout(() => voiceModal.classList.add('active'), 10);
+        });
+
+        const showAllVoicesCheckbox = document.getElementById('show-all-voices');
+
+        function reloadVoiceOptions() {
+            availableVoices = window.speechSynthesis.getVoices();
+            selectVoice.innerHTML = '<option value="">（デフォルト）</option>';
+            const showAll = showAllVoicesCheckbox.checked;
+            const filteredVoices = showAll ? availableVoices : availableVoices.filter(v => v.lang.startsWith('ja'));
+            filteredVoices.forEach(voice => {
+                const opt = document.createElement('option');
+                opt.value = voice.name;
+                opt.textContent = `${voice.name} (${voice.lang})`;
+                if (voice.name === selectedVoiceName) opt.selected = true;
+                selectVoice.appendChild(opt);
+            });
+        }
+
+        showAllVoicesCheckbox.addEventListener('change', reloadVoiceOptions);
+
+        // Voice presets
+        document.querySelectorAll('.voice-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pitch = parseFloat(btn.dataset.pitch);
+                const rate = parseFloat(btn.dataset.rate);
+                inputPitch.value = pitch;
+                inputRate.value = rate;
+                valPitch.textContent = pitch.toFixed(1);
+                valRate.textContent = rate.toFixed(1);
+            });
         });
 
         inputPitch.addEventListener('input', (e) => {
