@@ -632,7 +632,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function formatTime(totalSeconds) {
         const m = Math.floor(totalSeconds / 60);
         const s = totalSeconds % 60;
-        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        const sInt = Math.floor(s);
+        const ms = Math.floor((s - sInt) * 100);
+        return `${m.toString().padStart(2, '0')}:${sInt.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
     }
 
     function formatPace(totalSeconds, distance) {
@@ -660,11 +662,43 @@ document.addEventListener('DOMContentLoaded', () => {
         const recent = [...records].slice(0, 7).reverse();
         const maxTime = Math.max(...recent.map(r => r.totalSeconds));
         const minTime = Math.min(...recent.map(r => r.totalSeconds));
-        const padding = { top: 15, bottom: 25, left: 15, right: 15 };
+
+        // Padding for labels and titles
+        const padding = { top: 35, bottom: 35, left: 40, right: 15 };
         const chartWidth = width - padding.left - padding.right;
         const chartHeight = height - padding.top - padding.bottom;
-        const barWidth = Math.min(35, (chartWidth / recent.length) - 8);
+        const barWidth = Math.min(30, (chartWidth / recent.length) - 10);
         const gap = (chartWidth - barWidth * recent.length) / (recent.length + 1);
+
+        // --- Draw Header ---
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('直近7回のタイム推移', width / 2, 18);
+
+        // --- Draw Y-Axis labels (Time in minutes) ---
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('(分)', padding.left - 5, padding.top - 10);
+
+        const yTicks = 3;
+        for (let i = 0; i <= yTicks; i++) {
+            const ratio = i / yTicks;
+            const y = height - padding.bottom - ratio * chartHeight;
+            const valSeconds = minTime * 0.8 + ratio * (maxTime - minTime * 0.8 + 1);
+            const valMinutes = (valSeconds / 60).toFixed(1);
+
+            ctx.fillText(valMinutes, padding.left - 5, y + 4);
+
+            // Draw grid line
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+        }
 
         recent.forEach((r, i) => {
             const normalizedHeight = ((r.totalSeconds - minTime * 0.8) / (maxTime - minTime * 0.8 + 1)) * chartHeight;
@@ -706,11 +740,29 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.shadowBlur = 0;
             ctx.shadowOffsetY = 0;
 
-            // Day label
-            ctx.fillStyle = '#64748b';
-            ctx.font = '10px Inter, sans-serif';
+            // --- Value Label above bar ---
+            ctx.fillStyle = r.isBest ? '#fbbf24' : '#fff';
+            ctx.font = 'bold 9px Inter, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(`${i + 1}`, x + barWidth / 2, height - 8);
+            ctx.fillText(formatTime(r.totalSeconds), x + barWidth / 2, y - 6);
+
+            // --- Date label (MM/DD) ---
+            ctx.fillStyle = '#64748b';
+            ctx.font = '9px Inter, sans-serif';
+            ctx.textAlign = 'center';
+
+            // Extract MM/DD from date string (ja-JP: YYYY/MM/DD)
+            let dateLabel = '';
+            if (r.date) {
+                const parts = r.date.split('/');
+                if (parts.length >= 3) {
+                    dateLabel = `${parts[1]}/${parts[2]}`;
+                } else {
+                    dateLabel = r.date;
+                }
+            }
+
+            ctx.fillText(dateLabel, x + barWidth / 2, height - 12);
         });
     }
 
@@ -895,8 +947,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function startStopwatch() {
         startTime = Date.now() - (elapsedSeconds * 1000);
         timerInterval = setInterval(() => {
-            elapsedSeconds = Math.floor((Date.now() - startTime) / 1000); updateStopwatchDisplay();
-        }, 100);
+            elapsedSeconds = (Date.now() - startTime) / 1000; updateStopwatchDisplay();
+        }, 10);
     }
 
     function stopStopwatch() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
