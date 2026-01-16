@@ -178,11 +178,14 @@
                 <div id="map"></div>
             </div>
             <div class="advanced-controls">
-                <label class="switch-label">
-                    <span>🔊 音声ガイド</span>
-                    <input type="checkbox" id="switch-voice" class="hidden-checkbox" checked>
-                    <div class="switch"></div>
-                </label>
+                <div class="voice-toggle-wrapper">
+                    <label class="switch-label">
+                        <span>🔊 音声ガイド</span>
+                        <input type="checkbox" id="switch-voice" class="hidden-checkbox" checked>
+                        <div class="switch"></div>
+                    </label>
+                    <button id="btn-voice-settings" class="btn-icon-settings" title="音声設定">⚙️</button>
+                </div>
                 <label class="switch-label">
                     <span>📍 GPS追跡</span>
                     <input type="checkbox" id="switch-gps" class="hidden-checkbox" checked>
@@ -343,6 +346,48 @@
         </div>
     </div>
 
+    <!-- 音声設定モーダル -->
+    <div id="voice-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="modal-title">🔊 音声ガイド設定</h2>
+            <div class="voice-settings-form">
+                <div class="setting-item">
+                    <label for="select-voice">声の種類</label>
+                    <select id="select-voice" class="form-select">
+                        <option value="">（デフォルト）</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-header">
+                        <label for="input-pitch">音の高さ（ピッチ）</label>
+                        <span id="val-pitch" class="setting-val">1.0</span>
+                    </div>
+                    <input type="range" id="input-pitch" min="0.5" max="2.0" step="0.1" value="1.0" class="form-range">
+                    <div class="range-labels">
+                        <span>低い</span>
+                        <span>高い（アニメ風）</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-header">
+                        <label for="input-rate">話す速さ（速度）</label>
+                        <span id="val-rate" class="setting-val">1.0</span>
+                    </div>
+                    <input type="range" id="input-rate" min="0.5" max="2.0" step="0.1" value="1.0" class="form-range">
+                    <div class="range-labels">
+                        <span>ゆっくり</span>
+                        <span>速い</span>
+                    </div>
+                </div>
+                <button id="btn-test-voice" class="btn secondary">テスト再生</button>
+            </div>
+            <div class="modal-buttons">
+                <button id="btn-save-voice" class="btn success">保存</button>
+                <button id="btn-cancel-voice" class="btn secondary">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ルートマップ表示モーダル -->
     <div id="route-modal" class="modal-overlay hidden">
         <div class="modal-content route-modal-content">
@@ -366,21 +411,34 @@
             navigator.serviceWorker.register('./sw.js')
                 .then((reg) => {
                     console.log('Service Worker Registered');
+
+                    // すでに待機中の更新がある場合
+                    if (reg.waiting) {
+                        reg.waiting.postMessage('skipWaiting');
+                    }
+
                     reg.onupdatefound = () => {
                         const installingWorker = reg.installing;
                         installingWorker.onstatechange = () => {
                             if (installingWorker.state === 'installed') {
                                 if (navigator.serviceWorker.controller) {
-                                    // 新しいコンテンツが利用可能
-                                    if (confirm('新しいバージョンが利用可能です。更新しますか？')) {
-                                        window.location.reload();
-                                    }
+                                    // 新しいバージョンがインストールされたらskipWaitingを要求
+                                    installingWorker.postMessage('skipWaiting');
                                 }
                             }
                         };
                     };
                 })
                 .catch(err => console.error('Service Worker Registration Failed', err));
+
+            // SWが更新されたらページをリロード（一度きり）
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
         }
     </script>
 </body>

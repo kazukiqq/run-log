@@ -1,4 +1,4 @@
-const CACHE_NAME = 'run-log-v4'; // ← 更新時はここを 'v2', 'v3' と増やす
+const CACHE_NAME = 'run-log-v5'; // ← 更新時はここを 'v2', 'v3' と増やす
 const ASSETS = [
     './',
     './index.html',
@@ -39,4 +39,11 @@ self.addEventListener('fetch', (event) => {
         caches.match(event.request)
             .then((response) => response || fetch(event.request))
     );
+});
+
+// アプリ側からのメッセージ（skipWaiting等）を受け取る
+self.addEventListener('message', (event) => {
+    if (event.data === 'skipWaiting') {
+        self.skipWaiting();
+    }
 });

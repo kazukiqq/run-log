@@ -19,6 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastAnnouncedKm = 0;
     let totalGpsDistance = 0;
 
+    // --- Voice Settings State ---
+    let voicePitch = parseFloat(localStorage.getItem('running_voice_pitch')) || 1.0;
+    let voiceRate = parseFloat(localStorage.getItem('running_voice_rate')) || 1.0;
+    let selectedVoiceName = localStorage.getItem('running_voice_name') || null;
+    let availableVoices = [];
+
     // --- DOM Elements ---
     const screens = {
         userSelect: document.getElementById('screen-user-select'),
@@ -105,6 +111,81 @@ document.addEventListener('DOMContentLoaded', () => {
                 stopTracking();
             }
         });
+
+        // Voice settings modal
+        const btnVoiceSettings = document.getElementById('btn-voice-settings');
+        const voiceModal = document.getElementById('voice-modal');
+        const selectVoice = document.getElementById('select-voice');
+        const inputPitch = document.getElementById('input-pitch');
+        const inputRate = document.getElementById('input-rate');
+        const valPitch = document.getElementById('val-pitch');
+        const valRate = document.getElementById('val-rate');
+
+        btnVoiceSettings.addEventListener('click', () => {
+            // Load voices
+            availableVoices = window.speechSynthesis.getVoices();
+            selectVoice.innerHTML = '<option value="">（デフォルト）</option>';
+            availableVoices.filter(v => v.lang.startsWith('ja')).forEach(voice => {
+                const opt = document.createElement('option');
+                opt.value = voice.name;
+                opt.textContent = `${voice.name} (${voice.lang})`;
+                if (voice.name === selectedVoiceName) opt.selected = true;
+                selectVoice.appendChild(opt);
+            });
+
+            // Set current vals
+            inputPitch.value = voicePitch;
+            inputRate.value = voiceRate;
+            valPitch.textContent = voicePitch.toFixed(1);
+            valRate.textContent = voiceRate.toFixed(1);
+
+            voiceModal.classList.remove('hidden');
+            setTimeout(() => voiceModal.classList.add('active'), 10);
+        });
+
+        inputPitch.addEventListener('input', (e) => {
+            valPitch.textContent = parseFloat(e.target.value).toFixed(1);
+        });
+
+        inputRate.addEventListener('input', (e) => {
+            valRate.textContent = parseFloat(e.target.value).toFixed(1);
+        });
+
+        document.getElementById('btn-test-voice').addEventListener('click', () => {
+            const testPitch = parseFloat(inputPitch.value);
+            const testRate = parseFloat(inputRate.value);
+            const testVoiceName = selectVoice.value;
+
+            const uttr = new SpeechSynthesisUtterance("ナイスラン！今日もいい感じですね。");
+            uttr.lang = 'ja-JP';
+            uttr.pitch = testPitch;
+            uttr.rate = testRate;
+            if (testVoiceName) {
+                const voice = availableVoices.find(v => v.name === testVoiceName);
+                if (voice) uttr.voice = voice;
+            }
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(uttr);
+        });
+
+        document.getElementById('btn-save-voice').addEventListener('click', () => {
+            voicePitch = parseFloat(inputPitch.value);
+            voiceRate = parseFloat(inputRate.value);
+            selectedVoiceName = selectVoice.value;
+
+            localStorage.setItem('running_voice_pitch', voicePitch);
+            localStorage.setItem('running_voice_rate', voiceRate);
+            localStorage.setItem('running_voice_name', selectedVoiceName || '');
+
+            closeVoiceModal();
+        });
+
+        document.getElementById('btn-cancel-voice').addEventListener('click', closeVoiceModal);
+
+        function closeVoiceModal() {
+            voiceModal.classList.remove('active');
+            setTimeout(() => voiceModal.classList.add('hidden'), 300);
+        }
 
         // Weather fetch button
         const fetchWeatherBtn = document.getElementById('btn-fetch-weather');
@@ -241,7 +322,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isVoiceEnabled || !window.speechSynthesis) return;
         const uttr = new SpeechSynthesisUtterance(text);
         uttr.lang = 'ja-JP';
-        uttr.rate = 1.0;
+        uttr.pitch = voicePitch;
+        uttr.rate = voiceRate;
+
+        if (selectedVoiceName) {
+            const voices = window.speechSynthesis.getVoices();
+            const voice = voices.find(v => v.name === selectedVoiceName);
+            if (voice) uttr.voice = voice;
+        }
+
         window.speechSynthesis.speak(uttr);
     }
 
