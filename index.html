@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RUN LOG - ジョギング記録</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <!-- iOSでよりアプリらしく見せる設定 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap"
+        rel="stylesheet">
+    <!-- Leaflet for GPS Mapping -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+</head>
+
+<body>
+    <!-- Global Header with Hamburger (OUTSIDE #app for proper z-index) -->
+    <header id="global-header" class="hidden">
+        <div class="header-user-info">
+            <span id="header-user-icon" class="header-icon"></span>
+            <span id="header-user-name" class="header-name"></span>
+        </div>
+        <button id="btn-menu-open" class="btn-menu" aria-label="メニューを開く">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </header>
+
+    <!-- Slide Menu (OUTSIDE #app) -->
+    <div id="menu-overlay" class="menu-overlay"></div>
+    <nav id="side-menu" class="side-menu">
+        <div class="menu-header">
+            <h2>MENU</h2>
+            <button id="btn-menu-close" class="btn-close" aria-label="メニューを閉じる">×</button>
+        </div>
+        <div class="menu-items">
+            <button class="menu-item" data-action="home">🏠 ホーム</button>
+            <button class="menu-item" data-action="history">📊 記録一覧</button>
+            <button class="menu-item" data-action="ranking">🏆 ランキング</button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" data-action="selectUser">🔄 ユーザーを切り替える</button>
+            <button class="menu-item" data-action="registerUser">➕ 新しい人を追加</button>
+            <button class="menu-item" id="btn-check-update"
+                style="color: var(--color-primary); border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px;">🔄
+                アプリの更新をチェック</button>
+            <div class="menu-footer">
+                <span class="version-label">v1.5.0</span>
+            </div>
+        </div>
+    </nav>
+
+    <div id="app">
+        <!-- 0. ユーザー選択画面 -->
+        <section id="screen-user-select" class="screen">
+            <h1 class="screen-title">ユーザーを選択</h1>
+            <div class="button-group" style="margin-bottom: 2rem;">
+                <button id="btn-show-register" class="btn primary">➕ 新規ユーザー登録</button>
+                <button id="btn-select-home" class="btn secondary hidden">🏠 ホームに戻る</button>
+            </div>
+            <div id="user-list" class="user-grid">
+                <!-- Data will be injected here -->
+            </div>
+        </section>
+
+        <!-- 0.1 ユーザー登録画面 -->
+        <section id="screen-user-register" class="screen">
+            <h1 class="screen-title">新規ユーザー登録</h1>
+            <div class="registration-form">
+                <input type="text" id="input-username" placeholder="名前を入力（例：たろう）" maxlength="10">
+                <div class="character-select">
+                    <p>アイコンを選択(または写真を撮影)</p>
+                    <div id="icon-options" class="icon-grid">
+                        <span class="icon-opt selected" data-icon="🏃">🏃</span>
+                        <span class="icon-opt" data-icon="🏃‍♀️">🏃‍♀️</span>
+                        <span class="icon-opt" data-icon="🐱">🐱</span>
+                        <span class="icon-opt" data-icon="🐶">🐶</span>
+                        <span class="icon-opt" data-icon="🐻">🐻</span>
+                        <span class="icon-opt" data-icon="🐰">🐰</span>
+                    </div>
+                </div>
+                <div class="camera-section">
+                    <div id="camera-preview-container" class="camera-preview hidden">
+                        <video id="video" autoplay playsinline></video>
+                        <div class="camera-overlay"></div>
+                    </div>
+                    <div id="photo-preview-container" class="photo-preview hidden">
+                        <img id="photo-result" src="" alt="撮影した写真">
+                    </div>
+                    <div class="camera-controls">
+                        <button id="btn-camera-open" class="btn secondary">📷 カメラを起動</button>
+                        <button id="btn-camera-capture" class="btn success hidden">📸 撮影する</button>
+                        <button id="btn-camera-retry" class="btn danger hidden">🔄 撮り直す</button>
+                    </div>
+                    <canvas id="canvas" class="hidden"></canvas>
+                </div>
+            </div>
+            <div class="button-group horizontal">
+                <button id="btn-register-user" class="btn success">登録</button>
+                <button id="btn-cancel-register" class="btn danger">キャンセル</button>
+            </div>
+        </section>
+
+        <!-- 1. ホーム画面 -->
+        <section id="screen-home" class="screen">
+            <!-- Old user-header removed as it's now global -->
+            <div class="team-stats">
+                <span class="label">チーム合計距離</span>
+                <span id="team-total-dist" class="team-value">0.0km</span>
+            </div>
+
+            <!-- 月間目標プログレス -->
+            <div class="goal-card" id="goal-card">
+                <div class="goal-header">
+                    <span class="goal-title">🎯 今月の目標</span>
+                    <button id="btn-edit-goal" class="btn-goal-edit">設定</button>
+                </div>
+                <div class="goal-progress-container">
+                    <div class="goal-progress-bar">
+                        <div class="goal-progress-fill" id="goal-progress-fill"></div>
+                    </div>
+                    <div class="goal-progress-text">
+                        <span id="goal-current">0.0</span> / <span id="goal-target">10.0</span> km
+                    </div>
+                </div>
+                <div class="goal-percentage" id="goal-percentage">0%</div>
+            </div>
+            <div class="character-container">
+                <div id="home-character" class="character">🏃‍♂️</div>
+                <div class="message-bubble">
+                    <p id="home-message">今日も走りに行こう！</p>
+                </div>
+            </div>
+
+            <!-- 成長グラフエリア -->
+            <div class="stats-container">
+                <div class="stat-card">
+                    <span class="stat-label">累計距離</span>
+                    <span id="stat-total-dist" class="stat-value">0.0km</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">平均タイム</span>
+                    <span id="stat-avg-time" class="stat-value">--:--</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">自己ベスト</span>
+                    <span id="stat-best-time" class="stat-value">--:--</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">現在の順位</span>
+                    <span id="stat-current-rank" class="stat-value">--位</span>
+                </div>
+            </div>
+            <div class="graph-container">
+                <canvas id="growth-graph" width="300" height="120"></canvas>
+            </div>
+
+            <div class="button-group">
+                <button id="btn-to-stopwatch" class="btn primary">計測開始</button>
+                <div class="button-row">
+                    <button id="btn-to-history" class="btn secondary">記録一覧</button>
+                    <button id="btn-to-ranking" class="btn secondary">ランキング</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 1.1 ストップウォッチ画面 -->
+        <section id="screen-stopwatch" class="screen">
+            <h1 class="screen-title">計測準備</h1>
+            <div class="tracking-map-container" id="tracking-map-container">
+                <div id="map"></div>
+            </div>
+            <div class="advanced-controls">
+                <div class="voice-toggle-wrapper">
+                    <label class="switch-label">
+                        <span>🔊 音声ガイド</span>
+                        <input type="checkbox" id="switch-voice" class="hidden-checkbox" checked>
+                        <div class="switch"></div>
+                    </label>
+                    <button id="btn-voice-settings" class="btn-icon-settings" title="音声設定">⚙️</button>
+                </div>
+                <label class="switch-label">
+                    <span>📍 GPS追跡</span>
+                    <input type="checkbox" id="switch-gps" class="hidden-checkbox" checked>
+                    <div class="switch"></div>
+                </label>
+            </div>
+            <div class="stopwatch-display">
+                <div class="stopwatch-content">
+                    <span id="stopwatch-time">00:00</span>
+                    <div id="stopwatch-dist" class="stopwatch-sub-val">0.0 km</div>
+                </div>
+            </div>
+            <div class="button-group">
+                <button id="btn-stopwatch-toggle" class="btn success">スタート</button>
+                <button id="btn-stopwatch-done" class="btn primary" style="display: none;">計測完了</button>
+                <button id="btn-stopwatch-cancel" class="btn danger">中止</button>
+                <button id="btn-to-manual" class="btn secondary small-btn">手動で入力</button>
+            </div>
+        </section>
+
+        <!-- 2. 時間入力画面（手入力・調整） -->
+        <section id="screen-input" class="screen">
+            <h1 class="screen-title">タイムを記録</h1>
+            <div class="time-input-container">
+                <div class="input-block">
+                    <span class="label">距離(km)</span>
+                    <div class="counter">
+                        <button class="btn-minus" data-type="dist">−</button>
+                        <input type="number" id="input-dist" value="1.0" step="0.1" readonly>
+                        <button class="btn-plus" data-type="dist">+</button>
+                    </div>
+                </div>
+                <div class="input-block">
+                    <span class="label">分</span>
+                    <div class="counter">
+                        <button class="btn-minus" data-type="min">−</button>
+                        <input type="number" id="input-min" value="0" readonly>
+                        <button class="btn-plus" data-type="min">+</button>
+                    </div>
+                </div>
+                <div class="input-block">
+                    <span class="label">秒</span>
+                    <div class="counter">
+                        <button class="btn-minus" data-type="sec">−</button>
+                        <input type="number" id="input-sec" value="0" readonly>
+                        <button class="btn-plus" data-type="sec">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="weather-input-section">
+                <p class="label">今日のコンディション</p>
+                <div class="weather-selector">
+                    <input type="radio" name="weather" id="w-sunny" value="sunny" checked>
+                    <label for="w-sunny" title="晴れ">☀️</label>
+
+                    <input type="radio" name="weather" id="w-cloudy" value="cloudy">
+                    <label for="w-cloudy" title="曇り">☁️</label>
+
+                    <input type="radio" name="weather" id="w-rainy" value="rainy">
+                    <label for="w-rainy" title="雨">⛆</label>
+
+                    <input type="radio" name="weather" id="w-snowy" value="snowy">
+                    <label for="w-snowy" title="雪">❄️</label>
+                </div>
+                <div class="temp-input-wrapper">
+                    <input type="number" id="input-temp" step="0.5" placeholder="気温(℃)">
+                    <button id="btn-fetch-weather" class="btn-icon" title="現在地の天気を取得">🔄</button>
+                    <span id="weather-status-msg"></span>
+                </div>
+            </div>
+
+            <div class="button-group horizontal">
+                <button id="btn-save" class="btn success">保存する</button>
+                <button id="btn-cancel" class="btn danger">キャンセル</button>
+            </div>
+        </section>
+
+        <!-- 3. ほめ画面（リザルト画面） -->
+        <section id="screen-praise" class="screen">
+            <div class="praise-character-container">
+                <div id="praise-character" class="character-large">🙌</div>
+                <h2 id="praise-title">ナイスラン！</h2>
+                <div id="new-record-badge" class="badge">🏆 自己ベスト更新！</div>
+            </div>
+            <div class="result-display">
+                <p class="result-time"><span id="praise-time-val">00:00</span></p>
+                <p id="diff-message" class="diff-label"></p>
+            </div>
+            <div class="button-group">
+                <button id="btn-praise-home" class="btn primary">ホームへ戻る</button>
+            </div>
+        </section>
+
+        <!-- 4. 記録一覧画面 -->
+        <section id="screen-history" class="screen">
+            <h1 class="screen-title">全記録一覧</h1>
+            <div id="history-list" class="list-container">
+                <!-- Data will be injected here -->
+            </div>
+            <div class="button-group sticky-bottom">
+                <button id="btn-history-home" class="btn primary">ホームへ戻る</button>
+            </div>
+        </section>
+
+        <!-- 5. ランキング画面 -->
+        <section id="screen-ranking" class="screen">
+            <h1 class="screen-title">総合ランキング</h1>
+            <div class="ranking-tabs">
+                <button id="tab-rank-time" class="tab-btn active">ベストタイム</button>
+                <button id="tab-rank-dist" class="tab-btn">累計走行距離</button>
+            </div>
+            <div id="ranking-list" class="list-container">
+                <!-- Ranking data injected here -->
+            </div>
+            <div class="button-group sticky-bottom">
+                <button id="btn-ranking-home" class="btn primary">ホームへ戻る</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- 目標設定モーダル -->
+    <div id="goal-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="modal-title">🎯 月間目標設定</h2>
+            <p class="modal-description">今月走りたい距離を設定しよう！</p>
+            <div class="goal-input-container">
+                <input type="number" id="input-goal" value="10" min="1" max="100" step="0.5">
+                <span class="goal-unit">km</span>
+            </div>
+            <div class="goal-presets">
+                <button class="preset-btn" data-value="5">5km</button>
+                <button class="preset-btn" data-value="10">10km</button>
+                <button class="preset-btn" data-value="20">20km</button>
+                <button class="preset-btn" data-value="30">30km</button>
+            </div>
+            <div class="modal-buttons">
+                <button id="btn-save-goal" class="btn success">保存</button>
+                <button id="btn-cancel-goal" class="btn secondary">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 目標達成お祝いモーダル -->
+    <div id="celebration-modal" class="modal-overlay hidden">
+        <div class="celebration-content">
+            <div class="confetti-container" id="confetti-container"></div>
+            <div class="celebration-icon">🎉</div>
+            <h2 class="celebration-title">目標達成！</h2>
+            <p class="celebration-message">今月の目標 <span id="celebration-goal">10km</span> を達成しました！</p>
+            <div class="celebration-stats">
+                <div class="celebration-stat">
+                    <span class="stat-number" id="celebration-distance">10.5</span>
+                    <span class="stat-label">走行距離</span>
+                </div>
+            </div>
+            <button id="btn-close-celebration" class="btn primary">おめでとう！🎊</button>
+        </div>
+    </div>
+
+    <!-- 音声設定モーダル -->
+    <div id="voice-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="modal-title">🔊 音声ガイド設定</h2>
+            <div class="voice-settings-form">
+                <div class="setting-item">
+                    <label for="select-voice">声の種類</label>
+                    <select id="select-voice" class="form-select">
+                        <option value="">（デフォルト）</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-header">
+                        <label for="input-pitch">音の高さ（ピッチ）</label>
+                        <span id="val-pitch" class="setting-val">1.0</span>
+                    </div>
+                    <input type="range" id="input-pitch" min="0.5" max="2.0" step="0.1" value="1.0" class="form-range">
+                    <div class="range-labels">
+                        <span>低い</span>
+                        <span>高い（アニメ風）</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-header">
+                        <label for="input-rate">話す速さ（速度）</label>
+                        <span id="val-rate" class="setting-val">1.0</span>
+                    </div>
+                    <input type="range" id="input-rate" min="0.5" max="2.0" step="0.1" value="1.0" class="form-range">
+                    <div class="range-labels">
+                        <span>ゆっくり</span>
+                        <span>速い</span>
+                    </div>
+                </div>
+                <button id="btn-test-voice" class="btn secondary">テスト再生</button>
+            </div>
+            <div class="modal-buttons">
+                <button id="btn-save-voice" class="btn success">保存</button>
+                <button id="btn-cancel-voice" class="btn secondary">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ルートマップ表示モーダル -->
+    <div id="route-modal" class="modal-overlay hidden">
+        <div class="modal-content route-modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">🗺️ 走ったルート</h2>
+                <button id="btn-close-route" class="btn-close-modal">×</button>
+            </div>
+            <div id="route-map-container">
+                <div id="route-map"></div>
+            </div>
+            <div class="route-info">
+                <span id="route-date"></span>
+                <span id="route-distance"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+                .then((reg) => {
+                    console.log('Service Worker Registered');
+
+                    // 強制的に更新をチェック
+                    reg.update();
+
+                    // すでに待機中の更新がある場合
+                    if (reg.waiting) {
+                        reg.waiting.postMessage('skipWaiting');
+                    }
+
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // 新しいバージョンがインストールされたらskipWaitingを要求
+                                    installingWorker.postMessage('skipWaiting');
+                                }
+                            }
+                        };
+                    };
+                })
+                .catch(err => console.error('Service Worker Registration Failed', err));
+
+            // SWが更新されたらページをリロード（一度きり）
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
