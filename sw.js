@@ -1,4 +1,4 @@
-const CACHE_NAME = 'run-log-v8'; // ← 更新時はここを 'v2', 'v3' と増やす
+const CACHE_NAME = 'run-log-v9'; // ← 更新時はここを 'v2', 'v3' と増やす
 const ASSETS = [
     './',
     './index.html',
