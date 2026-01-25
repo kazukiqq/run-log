@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let users = JSON.parse(localStorage.getItem('running_users')) || [];
     let currentUser = null;
     let records = [];
+    let bodyRecords = []; // [{date: 'YYYY-MM-DD', weight: 65.0, height: 170.0}, ...]
     let currentRankMode = 'time'; // 'time' or 'dist'
     let cameraStream = null;
     let capturedPhoto = null;
@@ -602,9 +603,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function selectUser(user) {
         currentUser = user;
-        records = JSON.parse(localStorage.getItem(`records_${user.id}`)) || [];
-        loadGoalData();
-        showScreen('home');
+        function selectUser(user) {
+            currentUser = user;
+            records = JSON.parse(localStorage.getItem(`records_${user.id}`)) || [];
+            bodyRecords = JSON.parse(localStorage.getItem(`body_records_${user.id}`)) || [];
+            loadGoalData();
+            showScreen('home');
+        }
     }
 
     function registerUser() {
@@ -619,6 +624,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         users.push(newUser);
         localStorage.setItem('running_users', JSON.stringify(users));
+
+        // Initial Body Record
+        const initHeight = parseFloat(document.getElementById('input-height').value);
+        const initWeight = parseFloat(document.getElementById('input-weight').value);
+        if (initWeight > 0) {
+            const today = new Date().toISOString().slice(0, 10);
+            const initRecord = {
+                date: today,
+                weight: initWeight,
+                height: initHeight || null
+            };
+            localStorage.setItem(`body_records_${newUser.id}`, JSON.stringify([initRecord]));
+        }
 
         inputs.username.value = '';
         capturedPhoto = null;
@@ -1266,4 +1284,211 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+    // --- Body Stats Feature ---
+    function initBodyStatsListeners() {
+        const bodyCheckBtn = document.querySelector('button[data-action="bodyCheck"]');
+        if (bodyCheckBtn) {
+            bodyCheckBtn.addEventListener('click', () => {
+                closeMenu();
+                openBodyModal();
+            });
+        }
+
+        document.getElementById('btn-close-body').addEventListener('click', closeBodyModal);
+        document.getElementById('btn-save-body').addEventListener('click', saveBodyRecord);
+    }
+
+    // Call this manually since we are appending
+    initBodyStatsListeners();
+
+    function openBodyModal() {
+        const modal = document.getElementById('body-modal');
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.add('active'), 10);
+
+        // Reset inputs to today
+        document.getElementById('body-input-date').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('body-input-weight').value = '';
+        document.getElementById('body-input-height').value = '';
+
+        updateBodyStatsDisplay();
+    }
+
+    function closeBodyModal() {
+        const modal = document.getElementById('body-modal');
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
+    function saveBodyRecord() {
+        if (!currentUser) return;
+
+        const dateStr = document.getElementById('body-input-date').value;
+        const weight = parseFloat(document.getElementById('body-input-weight').value);
+        const height = parseFloat(document.getElementById('body-input-height').value);
+
+        if (!dateStr || isNaN(weight) || weight <= 0) {
+            alert('日付と体重は必須です');
+            return;
+        }
+
+        // Check if record for this date exists
+        const existingIndex = bodyRecords.findIndex(r => r.date === dateStr);
+
+        const newRecord = {
+            date: dateStr,
+            weight: weight,
+            height: height > 0 ? height : (existingIndex >= 0 ? bodyRecords[existingIndex].height : null)
+        };
+
+        // Inherit height from latest record if not provided
+        if (!newRecord.height && bodyRecords.length > 0) {
+            // Find latest record with height
+            const withHeight = [...bodyRecords].sort((a, b) => new Date(b.date) - new Date(a.date)).find(r => r.height);
+            if (withHeight) newRecord.height = withHeight.height;
+        }
+
+        if (existingIndex >= 0) {
+            bodyRecords[existingIndex] = newRecord;
+        } else {
+            bodyRecords.push(newRecord);
+        }
+
+        // Sort by date ascending
+        bodyRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        localStorage.setItem(`body_records_${currentUser.id}`, JSON.stringify(bodyRecords));
+
+        // Clear inputs
+        document.getElementById('body-input-weight').value = '';
+
+        updateBodyStatsDisplay();
+    }
+
+    function updateBodyStatsDisplay() {
+        const listEl = document.getElementById('body-history-list');
+        listEl.innerHTML = '';
+
+        if (bodyRecords.length === 0) {
+            document.getElementById('display-height').textContent = '--';
+            document.getElementById('display-weight').textContent = '--';
+            document.getElementById('display-bmi').textContent = '--';
+            listEl.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:1rem;">まだ記録がありません</p>';
+            drawWeightGraph();
+            return;
+        }
+
+        // Latest Stats
+        const latest = bodyRecords[bodyRecords.length - 1]; // sorted ascending
+        document.getElementById('display-weight').textContent = latest.weight.toFixed(1);
+        document.getElementById('display-height').textContent = latest.height ? latest.height.toFixed(1) : '--';
+
+        if (latest.weight && latest.height) {
+            const hM = latest.height / 100;
+            const bmi = latest.weight / (hM * hM);
+            document.getElementById('display-bmi').textContent = bmi.toFixed(1);
+        } else {
+            document.getElementById('display-bmi').textContent = '--';
+        }
+
+        // History List (Reverse Order)
+        [...bodyRecords].reverse().forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'history-item-compact';
+            const hStr = r.height ? ` / ${r.height}cm` : '';
+            item.innerHTML = `
+                <span class="history-date">${r.date}</span>
+                <span class="history-val">${r.weight.toFixed(1)}kg${hStr}</span>
+            `;
+            listEl.appendChild(item);
+        });
+
+        drawWeightGraph();
+    }
+
+    function drawWeightGraph() {
+        const canvas = document.getElementById('weight-graph');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        ctx.clearRect(0, 0, width, height);
+
+        if (bodyRecords.length < 2) {
+            ctx.fillStyle = '#64748b';
+            ctx.font = '13px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('記録を増やすとグラフが表示されます', width / 2, height / 2);
+            return;
+        }
+
+        // Use last 7 records or all if less
+        const data = [...bodyRecords].slice(-7);
+
+        const weights = data.map(r => r.weight);
+        const maxW = Math.max(...weights);
+        const minW = Math.min(...weights);
+        const padding = { top: 20, bottom: 20, left: 30, right: 20 };
+
+        // Y-axis range padding
+        const range = maxW - minW || 1;
+        const yMax = maxW + range * 0.1;
+        const yMin = Math.max(0, minW - range * 0.1);
+        const chartH = height - padding.top - padding.bottom;
+        const chartW = width - padding.left - padding.right;
+
+        // Draw Axes
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        // Y-axis line
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, height - padding.bottom);
+        // X-axis line
+        ctx.moveTo(padding.left, height - padding.bottom);
+        ctx.lineTo(width - padding.right, height - padding.bottom);
+        ctx.stroke();
+
+        // Draw Line
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        const stepX = chartW / (Math.max(1, data.length - 1));
+        const points = [];
+
+        data.forEach((r, i) => {
+            const x = padding.left + i * stepX;
+            const y = height - padding.bottom - ((r.weight - yMin) / (Math.max(1, yMax - yMin))) * chartH;
+            points.push({ x, y, val: r.weight, date: r.date.slice(5) }); // MM-DD
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Draw Points & Labels
+        ctx.fillStyle = '#3b82f6';
+        ctx.font = '10px Inter';
+        ctx.textAlign = 'center';
+
+        points.forEach(p => {
+            // Point
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Date Label
+            ctx.fillStyle = '#64748b';
+            ctx.fillText(p.date, p.x, height - 5);
+
+            // Weight Label (if space allows or it's first/last)
+            ctx.fillStyle = '#334155';
+            ctx.fillText(p.val.toFixed(1), p.x, p.y - 8);
+            ctx.fillStyle = '#3b82f6'; // Reset for next point
+        });
+    }
+
 });

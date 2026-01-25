@@ -48,6 +48,7 @@
             <button class="menu-item" data-action="home">🏠 ホーム</button>
             <button class="menu-item" data-action="history">📊 記録一覧</button>
             <button class="menu-item" data-action="ranking">🏆 ランキング</button>
+            <button class="menu-item" data-action="bodyCheck">⚖️ 体調管理</button>
             <div class="menu-divider"></div>
             <button class="menu-item" data-action="selectUser">🔄 ユーザーを切り替える</button>
             <button class="menu-item" data-action="registerUser">➕ 新しい人を追加</button>
@@ -78,6 +79,10 @@
             <h1 class="screen-title">新規ユーザー登録</h1>
             <div class="registration-form">
                 <input type="text" id="input-username" placeholder="名前を入力（例：たろう）" maxlength="10">
+                <div class="form-row-multi">
+                    <input type="number" id="input-height" placeholder="身長(cm)" inputmode="decimal" step="0.1">
+                    <input type="number" id="input-weight" placeholder="体重(kg)" inputmode="decimal" step="0.1">
+                </div>
                 <div class="character-select">
                     <p>アイコンを選択(または写真を撮影)</p>
                     <div id="icon-options" class="icon-grid">
@@ -328,6 +333,56 @@
             <div class="modal-buttons">
                 <button id="btn-save-goal" class="btn success">保存</button>
                 <button id="btn-cancel-goal" class="btn secondary">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 体調管理モーダル -->
+    <div id="body-modal" class="modal-overlay hidden">
+        <div class="modal-content body-modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">⚖️ 体調管理</h2>
+                <button id="btn-close-body" class="btn-close-modal">×</button>
+            </div>
+
+            <div class="body-current-stats">
+                <div class="stat-box">
+                    <span class="stat-label">身長</span>
+                    <span id="display-height" class="stat-val">--</span>
+                    <span class="stat-unit">cm</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">体重</span>
+                    <span id="display-weight" class="stat-val">--</span>
+                    <span class="stat-unit">kg</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">BMI</span>
+                    <span id="display-bmi" class="stat-val">--</span>
+                </div>
+            </div>
+
+            <div class="body-graph-container">
+                <canvas id="weight-graph" width="300" height="150"></canvas>
+            </div>
+
+            <div class="body-input-section">
+                <h3>記録を追加</h3>
+                <div class="body-input-row">
+                    <input type="date" id="body-input-date">
+                    <input type="number" id="body-input-weight" placeholder="体重(kg)" step="0.1">
+                </div>
+                <div class="body-input-row">
+                    <input type="number" id="body-input-height" placeholder="身長(cm) ※任意" step="0.1">
+                    <button id="btn-save-body" class="btn success small-btn">記録</button>
+                </div>
+            </div>
+
+            <div class="body-history-section">
+                <h3>履歴</h3>
+                <div id="body-history-list" class="history-list-compact">
+                    <!-- JS Injected -->
+                </div>
             </div>
         </div>
     </div>
